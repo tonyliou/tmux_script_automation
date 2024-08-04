@@ -2,15 +2,10 @@ import os
 import subprocess
 import time
 from datetime import datetime
+import argparse
 
-# Define the password
-PASSWORD = "1234"
-
-# Create a new tmux session name
-SESSION_NAME = "automation"
-
-def initialize_tmux_session():
-    subprocess.run(["tmux", "new-session", "-d", "-s", SESSION_NAME])
+def initialize_tmux_session(session_name):
+    subprocess.run(["tmux", "new-session", "-d", "-s", session_name])
 
 def create_expect_script(script_name, password, log_file):
     expect_script_content = f"""
@@ -27,7 +22,7 @@ interact
         file.write(expect_script_content)
     return script_path
 
-def run_script(script_name, delay):
+def run_script(script_name, password, delay, session_name):
     # Generate window name, use the script filename (without extension) as the window name
     window_name = os.path.splitext(script_name)[0]
 
@@ -38,16 +33,22 @@ def run_script(script_name, delay):
     log_file = f"logs/{window_name}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
 
     # Create expect script
-    expect_script = create_expect_script(script_name, PASSWORD, log_file)
+    expect_script = create_expect_script(script_name, password, log_file)
 
     # Create a new window
     tmux_command = f"""
-    tmux new-window -t {SESSION_NAME} -n {window_name} "bash -c 'sleep {delay}; expect {expect_script} 2>&1 | tee {log_file}; echo \\"Script {script_name} finished. Press Enter to return to bash.\\"; read; exec bash'"
+    tmux new-window -t {session_name} -n {window_name} "bash -c 'sleep {delay}; expect {expect_script} 2>&1 | tee {log_file}; echo \\"Script {script_name} finished. Press Enter to return to bash.\\"; read; exec bash'"
     """
     subprocess.run(tmux_command, shell=True, executable="/bin/bash")
 
 def main():
-    initialize_tmux_session()
+    parser = argparse.ArgumentParser(description='Automate tmux sessions with expect scripts.')
+    parser.add_argument('--password', required=True, help='Password for sudo')
+    args = parser.parse_args()
+
+    password = args.password
+    session_name = "automation"
+    initialize_tmux_session(session_name)
 
     # List of scripts and their respective delays in seconds
     script_table = [
@@ -59,10 +60,10 @@ def main():
 
     # Create a tmux window for each script and run it with the specified delay
     for script, delay in script_table:
-        run_script(script, delay)
+        run_script(script, password, delay, session_name)
 
     # Attach to the session to view
-    subprocess.run(["tmux", "attach", "-t", SESSION_NAME])
+    subprocess.run(["tmux", "attach", "-t", session_name])
 
 if __name__ == "__main__":
     main()
