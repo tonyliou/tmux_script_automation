@@ -32,15 +32,12 @@ interact
         file.write(expect_script_content)
     return script_path
 
-def run_script(script_name, password, delay, session_name, user_type):
+def run_script(script_name, user_type, delay, password, session_name, logs_dir):
     # Generate window name, use the script filename (without extension) as the window name
     window_name = os.path.splitext(script_name)[0]
 
-    # Ensure logs directory exists
-    os.makedirs("logs", exist_ok=True)
-
-    # Generate log file path
-    log_file = f"logs/{window_name}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
+    # Generate log file path inside the timestamped logs directory
+    log_file = f"{logs_dir}/{window_name}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
 
     # Create expect script
     expect_script = create_expect_script(script_name, password, log_file, user_type)
@@ -60,17 +57,21 @@ def main():
     session_name = "automation"
     initialize_tmux_session(session_name)
 
-    # List of scripts, delays, and user types
+    # Create timestamped logs directory
+    logs_dir = f"logs_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+    os.makedirs(logs_dir, exist_ok=True)
+
+    # List of scripts, user types, and delays
     script_table = [
-        ("test1.sh", 0, 'sudo'),    # (script_name, delay, user_type)
-        ("test2.sh", 5, 'user'),
-        ("test3.sh", 10, 'user'),
-        # Add new scripts, delays, and user types here by adding new tuples
+        ("test1.sh", 'sudo', 0),    # (script_name, user_type, delay)
+        ("test2.sh", 'user', 5),
+        ("test3.sh", 'sudo', 10),
+        # Add new scripts, user types, and delays here by adding new tuples
     ]
 
     # Create a tmux window for each script and run it with the specified delay
-    for script, delay, user_type in script_table:
-        run_script(script, password, delay, session_name, user_type)
+    for script, user_type, delay in script_table:
+        run_script(script, user_type, delay, password, session_name, logs_dir)
 
     # Attach to the session to view
     subprocess.run(["tmux", "attach", "-t", session_name])
